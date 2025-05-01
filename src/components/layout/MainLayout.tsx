@@ -1,73 +1,88 @@
 
 import React from "react";
 import { Link } from "react-router-dom";
-import { Music } from "lucide-react";
+import { Music, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { NavigationMenu, NavigationMenuItem, NavigationMenuList } from "@/components/ui/navigation-menu";
+import { useAuth } from "@/context/AuthContext";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 
 interface MainLayoutProps {
   children: React.ReactNode;
 }
 
 const MainLayout: React.FC<MainLayoutProps> = ({ children }) => {
-  // Mock user state - in a real app, this would come from auth context
-  const isLoggedIn = false;
-  
+  const { user, profile, signOut } = useAuth();
+
   return (
-    <div className="min-h-screen bg-soundboard-dark flex flex-col">
-      <header className="border-b border-secondary">
-        <div className="container mx-auto px-4 py-4 flex justify-between items-center">
-          <Link to="/" className="flex items-center gap-2">
+    <div className="min-h-screen bg-background text-foreground flex flex-col">
+      <header className="border-b border-border bg-soundboard-dark">
+        <div className="container mx-auto px-4 h-16 flex items-center justify-between">
+          <Link to="/" className="flex items-center space-x-2">
             <Music className="h-6 w-6 text-soundboard-purple" />
-            <span className="font-bold text-xl">SoundBoard</span>
+            <span className="font-bold text-lg">SoundBoard</span>
           </Link>
-          
-          <NavigationMenu>
-            <NavigationMenuList className="flex gap-6">
-              <NavigationMenuItem>
-                <Link to="/explore" className="text-gray-300 hover:text-white">
-                  Explore
-                </Link>
-              </NavigationMenuItem>
-              <NavigationMenuItem>
-                <Link to="/how-it-works" className="text-gray-300 hover:text-white">
-                  How It Works
-                </Link>
-              </NavigationMenuItem>
-            </NavigationMenuList>
-          </NavigationMenu>
-          
-          <div className="flex items-center gap-3">
-            {isLoggedIn ? (
-              <>
-                <Button variant="outline" asChild>
-                  <Link to="/new-jam">New Jam Room</Link>
-                </Button>
-                <Button variant="ghost" asChild>
-                  <Link to="/profile">Profile</Link>
-                </Button>
-              </>
+
+          <div className="flex items-center space-x-4">
+            {user ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" className="relative h-8 w-8 rounded-full" aria-label="User menu">
+                    <Avatar>
+                      <AvatarFallback>
+                        {profile?.username ? profile.username.charAt(0).toUpperCase() : "U"}
+                      </AvatarFallback>
+                    </Avatar>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="end" forceMount>
+                  <DropdownMenuLabel className="font-normal">
+                    <div className="flex flex-col space-y-1">
+                      <p className="text-sm font-medium leading-none">
+                        {profile?.username || "User"}
+                      </p>
+                      <p className="text-xs leading-none text-muted-foreground">
+                        {user.email}
+                      </p>
+                    </div>
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem asChild>
+                    <Link to="/profile" className="w-full cursor-pointer">
+                      <User className="mr-2 h-4 w-4" />
+                      <span>Profile</span>
+                    </Link>
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={signOut} className="cursor-pointer">
+                    <LogOut className="mr-2 h-4 w-4" />
+                    <span>Log out</span>
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             ) : (
-              <>
-                <Button variant="outline" asChild>
-                  <Link to="/login">Login</Link>
-                </Button>
-                <Button asChild>
-                  <Link to="/signup">Sign Up</Link>
-                </Button>
-              </>
+              <Button asChild>
+                <Link to="/auth">Sign In</Link>
+              </Button>
             )}
           </div>
         </div>
       </header>
-      
-      <main className="flex-grow">
+
+      <main className="flex-1">
         {children}
       </main>
-      
-      <footer className="border-t border-secondary py-6">
+
+      <footer className="border-t border-border py-6 bg-soundboard-dark">
         <div className="container mx-auto px-4 text-center text-sm text-gray-400">
-          © {new Date().getFullYear()} SoundBoard. All rights reserved.
+          <p>© {new Date().getFullYear()} SoundBoard. All rights reserved.</p>
         </div>
       </footer>
     </div>
