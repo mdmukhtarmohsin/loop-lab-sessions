@@ -2,7 +2,6 @@
 import { createContext, useState, useEffect, useContext, ReactNode } from "react";
 import { User } from "@supabase/supabase-js";
 import { supabase, UserProfile } from "@/lib/supabase";
-import { useToast } from "@/hooks/use-toast";
 import { toast } from "sonner";
 
 interface AuthContextType {

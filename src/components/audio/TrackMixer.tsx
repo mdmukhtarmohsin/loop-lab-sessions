@@ -1,9 +1,10 @@
 
-import React from "react";
-import { Volume2, Trash } from "lucide-react";
+import React, { useState } from "react";
+import { Volume2, Trash, Play } from "lucide-react";
 import { Slider } from "@/components/ui/slider";
 import { Switch } from "@/components/ui/switch";
 import WaveformVisualizer from "./WaveformVisualizer";
+import { toast } from "sonner";
 
 export interface Track {
   id: string;
@@ -16,18 +17,27 @@ export interface Track {
 interface TrackMixerProps {
   tracks: Track[];
   onDeleteTrack?: (id: string) => void;
+  onExportMixdown?: (
+    activeTracksMap: Record<string, boolean>,
+    volumeMap: Record<string, number>
+  ) => void;
 }
 
-const TrackMixer: React.FC<TrackMixerProps> = ({ tracks, onDeleteTrack }) => {
-  const [activeTracksMap, setActiveTracksMap] = React.useState<Record<string, boolean>>(
+const TrackMixer: React.FC<TrackMixerProps> = ({ 
+  tracks, 
+  onDeleteTrack,
+  onExportMixdown
+}) => {
+  const [activeTracksMap, setActiveTracksMap] = useState<Record<string, boolean>>(
     tracks.reduce((acc, track) => ({ ...acc, [track.id]: true }), {})
   );
   
-  const [volumeMap, setVolumeMap] = React.useState<Record<string, number>>(
+  const [volumeMap, setVolumeMap] = useState<Record<string, number>>(
     tracks.reduce((acc, track) => ({ ...acc, [track.id]: 80 }), {})
   );
   
-  const [playingTrack, setPlayingTrack] = React.useState<string | null>(null);
+  const [playingTrack, setPlayingTrack] = useState<string | null>(null);
+  const [audioElements, setAudioElements] = useState<Record<string, HTMLAudioElement>>({});
 
   const toggleTrackActive = (trackId: string) => {
     setActiveTracksMap((prev) => ({
@@ -41,18 +51,46 @@ const TrackMixer: React.FC<TrackMixerProps> = ({ tracks, onDeleteTrack }) => {
       ...prev,
       [trackId]: value[0],
     }));
+    
+    // Update volume of playing track if needed
+    if (audioElements[trackId]) {
+      audioElements[trackId].volume = value[0] / 100;
+    }
   };
 
   const handlePlayTrack = (trackId: string, audioUrl: string) => {
-    const audio = new Audio(audioUrl);
+    // Stop any currently playing track
+    if (playingTrack && audioElements[playingTrack]) {
+      audioElements[playingTrack].pause();
+      audioElements[playingTrack].currentTime = 0;
+    }
+    
+    // Create or reuse audio element
+    let audio = audioElements[trackId];
+    if (!audio) {
+      audio = new Audio(audioUrl);
+      setAudioElements(prev => ({...prev, [trackId]: audio}));
+    }
+    
+    // Set volume and play
     audio.volume = (volumeMap[trackId] || 80) / 100;
     
     audio.onended = () => {
       setPlayingTrack(null);
     };
     
-    audio.play();
+    audio.play().catch(err => {
+      console.error("Error playing audio:", err);
+      toast.error("Could not play audio. Please try again.");
+    });
     setPlayingTrack(trackId);
+  };
+
+  // Handle export if needed
+  const handleExportClick = () => {
+    if (onExportMixdown) {
+      onExportMixdown(activeTracksMap, volumeMap);
+    }
   };
 
   if (tracks.length === 0) {
@@ -86,9 +124,10 @@ const TrackMixer: React.FC<TrackMixerProps> = ({ tracks, onDeleteTrack }) => {
               <span>{track.user}</span>
               <button 
                 onClick={() => handlePlayTrack(track.id, track.audioUrl)}
-                className="hover:text-white"
+                className="hover:text-white flex items-center gap-1"
               >
-                Play
+                <Play size={14} />
+                {playingTrack === track.id ? "Playing..." : "Play"}
               </button>
               {onDeleteTrack && (
                 <button 

@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Download, Share, Settings, Users } from "lucide-react";
@@ -11,11 +12,14 @@ import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
 import { supabase } from "@/lib/supabase";
 import { useAuth } from "@/context/AuthContext";
+import { mixdownTracks, downloadAudioFile } from "@/utils/audioUtils";
 
 const JamRoom: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const { user, profile } = useAuth();
   const navigate = useNavigate();
+  
+  const [exportLoading, setExportLoading] = useState(false);
   
   // Fetch jam room data
   const { data: jamRoom, isLoading: roomLoading, error: roomError } = useQuery({
@@ -70,7 +74,7 @@ const JamRoom: React.FC = () => {
         id: track.id,
         name: track.name,
         audioUrl: track.audio_url,
-        user: track.user_name,
+        user: track.user_name === profile?.username ? "You" : track.user_name,
         createdAt: track.created_at,
       }));
     },
@@ -164,16 +168,76 @@ const JamRoom: React.FC = () => {
     return () => clearInterval(interval);
   }, [id, refetchTracks]);
   
-  const handleExportMixdown = () => {
-    // In a real app, this would use Web Audio API to mix and download tracks
-    toast.success('Mixdown would be exported here in a real app');
+  // Update analytics for exported mixdowns
+  const updateExportAnalytics = async () => {
+    if (!user) return;
+    
+    try {
+      // Update mixdowns_exported count
+      await supabase
+        .from('user_analytics')
+        .update({ mixdowns_exported: supabase.rpc('increment', { x: 1 }) })
+        .eq('user_id', user.id);
+    } catch (error) {
+      console.error("Error updating export analytics:", error);
+    }
+  };
+  
+  const handleExportMixdown = async (
+    activeTracksMap: Record<string, boolean> = {},
+    volumeMap: Record<string, number> = {}
+  ) => {
+    if (!tracks.length) {
+      toast.error('No tracks available to export');
+      return;
+    }
+    
+    const activeTracks = tracks.filter(track => activeTracksMap[track.id]);
+    if (!activeTracks.length) {
+      toast.error('No active tracks to export. Please enable at least one track.');
+      return;
+    }
+    
+    setExportLoading(true);
+    
+    try {
+      toast.info('Preparing mixdown. This may take a moment...');
+      const wavBlob = await mixdownTracks(tracks, activeTracksMap, volumeMap);
+      
+      // Create a download link
+      const url = URL.createObjectURL(wavBlob);
+      const filename = `${jamRoom?.title || 'jam'}_mixdown_${new Date().toISOString().slice(0, 10)}.wav`;
+      
+      downloadAudioFile(url, filename);
+      
+      // Update user analytics
+      await updateExportAnalytics();
+      
+      toast.success('Mixdown exported successfully!');
+    } catch (error) {
+      console.error('Error exporting mixdown:', error);
+      toast.error('Failed to export mixdown. Please try again.');
+    } finally {
+      setExportLoading(false);
+    }
+  };
+  
+  // Copy invite link to clipboard
+  const handleShareRoom = () => {
+    const url = window.location.href;
+    navigator.clipboard.writeText(url).then(() => {
+      toast.success('Jam room link copied to clipboard');
+    }, () => {
+      toast.error('Failed to copy link');
+    });
   };
 
   if (roomLoading) {
     return (
       <MainLayout>
         <div className="container mx-auto px-4 py-16 text-center">
-          Loading jam room...
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-soundboard-purple mx-auto mb-4"></div>
+          <p className="text-gray-400">Loading jam room...</p>
         </div>
       </MainLayout>
     );
@@ -183,7 +247,8 @@ const JamRoom: React.FC = () => {
     return (
       <MainLayout>
         <div className="container mx-auto px-4 py-16 text-center">
-          Error loading jam room. Please try again.
+          <p className="text-red-400 mb-4">Error loading jam room. Please try again.</p>
+          <Button onClick={() => navigate('/')}>Return Home</Button>
         </div>
       </MainLayout>
     );
@@ -229,11 +294,19 @@ const JamRoom: React.FC = () => {
               </div>
               
               <div className="flex flex-col space-y-2">
-                <Button onClick={handleExportMixdown} className="w-full">
+                <Button 
+                  onClick={handleExportMixdown}
+                  className="w-full"
+                  disabled={exportLoading || tracks.length === 0}
+                >
                   <Download className="mr-2 h-4 w-4" />
-                  Export Mixdown
+                  {exportLoading ? "Exporting..." : "Export Mixdown"}
                 </Button>
-                <Button variant="outline" className="w-full">
+                <Button 
+                  onClick={handleShareRoom} 
+                  variant="outline" 
+                  className="w-full"
+                >
                   <Share className="mr-2 h-4 w-4" />
                   Invite Musicians
                 </Button>
@@ -260,7 +333,7 @@ const JamRoom: React.FC = () => {
               <Tabs defaultValue="all" className="mb-6">
                 <TabsList>
                   <TabsTrigger value="all">All Tracks ({tracks.length})</TabsTrigger>
-                  <TabsTrigger value="your">Your Tracks ({tracks.filter(t => t.user === profile?.username).length})</TabsTrigger>
+                  <TabsTrigger value="your">Your Tracks ({tracks.filter(t => t.user === "You").length})</TabsTrigger>
                 </TabsList>
                 
                 <TabsContent value="all" className="mt-4">
@@ -268,17 +341,21 @@ const JamRoom: React.FC = () => {
                     tracks={tracks} 
                     onDeleteTrack={(id) => {
                       const trackToDelete = tracks.find(t => t.id === id);
-                      if (trackToDelete && trackToDelete.user === profile?.username) {
+                      if (trackToDelete && trackToDelete.user === "You") {
                         handleDeleteTrack(id);
+                      } else {
+                        toast.error("You can only delete your own tracks");
                       }
                     }}
+                    onExportMixdown={handleExportMixdown}
                   />
                 </TabsContent>
                 
                 <TabsContent value="your" className="mt-4">
                   <TrackMixer 
-                    tracks={tracks.filter(t => t.user === profile?.username)} 
+                    tracks={tracks.filter(t => t.user === "You")} 
                     onDeleteTrack={handleDeleteTrack}
+                    onExportMixdown={handleExportMixdown}
                   />
                 </TabsContent>
               </Tabs>

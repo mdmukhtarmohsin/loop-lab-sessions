@@ -5,7 +5,12 @@ import { createClient } from '@supabase/supabase-js';
 const SUPABASE_URL = "https://ykxgdznqdoyaytbsfhpk.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlreGdkem5xZG95YXl0YnNmaHBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYwODEzMTUsImV4cCI6MjA2MTY1NzMxNX0.W_0wABGIZ918AixQLPPYUCUns24NDpIPLf4OaL8xYfs";
 
-export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true
+  }
+});
 
 export type UserProfile = {
   id: string;
