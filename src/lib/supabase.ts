@@ -1,14 +1,11 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
+// Use the same URL and key as the auto-generated client
+const SUPABASE_URL = "https://ykxgdznqdoyaytbsfhpk.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlreGdkem5xZG95YXl0YnNmaHBrIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDYwODEzMTUsImV4cCI6MjA2MTY1NzMxNX0.W_0wABGIZ918AixQLPPYUCUns24NDpIPLf4OaL8xYfs";
 
-if (!supabaseUrl || !supabaseAnonKey) {
-  console.error('Missing Supabase environment variables');
-}
-
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 export type UserProfile = {
   id: string;
