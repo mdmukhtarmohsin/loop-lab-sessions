@@ -1,51 +1,14 @@
 
 import { createClient } from '@supabase/supabase-js';
 
-// Replace these with your actual Supabase URL and anon key
-// In production, these should come from environment variables
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://your-project-url.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'your-anon-key';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || '';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || '';
 
-// Create a mock client for development if credentials are missing
-const createSupabaseClient = () => {
-  try {
-    return createClient(supabaseUrl, supabaseAnonKey);
-  } catch (error) {
-    console.error('Error initializing Supabase client:', error);
-    
-    // Return a mock client that won't break the app during development
-    // This allows the app to load even without proper Supabase credentials
-    return {
-      auth: {
-        getSession: async () => ({ data: { session: null } }),
-        onAuthStateChange: () => ({ data: { subscription: { unsubscribe: () => {} } } }),
-        signUp: async () => ({ data: null, error: new Error('Supabase not configured') }),
-        signInWithPassword: async () => ({ data: null, error: new Error('Supabase not configured') }),
-        signOut: async () => {},
-      },
-      from: () => ({
-        select: () => ({
-          eq: () => ({
-            single: async () => ({ data: null, error: new Error('Supabase not configured') }),
-            order: () => ({ data: [], error: null }),
-            limit: () => ({ data: [], error: null }),
-          }),
-          order: () => ({ data: [], error: null }),
-        }),
-        insert: () => ({
-          select: () => ({
-            single: async () => ({ data: null, error: new Error('Supabase not configured') })
-          })
-        }),
-        delete: () => ({
-          eq: () => ({ error: null })
-        })
-      })
-    };
-  }
-};
+if (!supabaseUrl || !supabaseAnonKey) {
+  console.error('Missing Supabase environment variables');
+}
 
-export const supabase = createSupabaseClient();
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
 export type UserProfile = {
   id: string;
