@@ -1,50 +1,77 @@
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Music, Mic, Download, Clock } from "lucide-react";
 import MainLayout from "@/components/layout/MainLayout";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import JamRoomCard, { JamRoomProps } from "@/components/jam/JamRoomCard";
+import JamRoomCard from "@/components/jam/JamRoomCard";
+import { useAuth } from "@/context/AuthContext";
+import { supabase } from "@/lib/supabase";
+import { JamRoomData } from "@/lib/supabase";
+import { useQuery } from "@tanstack/react-query";
 
 const Profile: React.FC = () => {
-  // Mock user data
-  const user = {
-    name: "Audio Explorer",
-    username: "audioexplorer",
-    joinDate: "January 2023",
-    bio: "Musician, producer, and collaborative jam enthusiast. Let's make some music together!",
-    stats: {
-      jamRoomsHosted: 12,
-      loopsRecorded: 47,
-      mixdownExports: 8,
-      avgLoopsPerSession: 3.9,
-    },
-  };
+  const { user, profile } = useAuth();
   
-  // Mock data for user's jam rooms
-  const userJams: JamRoomProps[] = [
-    {
-      id: "user-jam-1",
-      title: "Funk Session #12",
-      bpm: 110,
-      key: "Dm",
-      isPublic: true,
-      host: user.username,
-      activeUsers: 2,
-      trackCount: 5,
-      createdAt: new Date(Date.now() - 86400000).toISOString(), // 1 day ago
+  const { data: userAnalytics, isLoading: isAnalyticsLoading } = useQuery({
+    queryKey: ['userAnalytics', user?.id],
+    queryFn: async () => {
+      if (!user) return null;
+      const { data, error } = await supabase
+        .from('user_analytics')
+        .select('*')
+        .eq('user_id', user.id)
+        .single();
+        
+      if (error) {
+        console.error("Error fetching analytics:", error);
+        return null;
+      }
+      
+      return data;
     },
-    {
-      id: "user-jam-2",
-      title: "Ambient Space Loops",
-      bpm: 70,
-      key: "C",
-      isPublic: false,
-      host: user.username,
-      activeUsers: 1,
-      trackCount: 3,
-      createdAt: new Date(Date.now() - 172800000).toISOString(), // 2 days ago
+    enabled: !!user
+  });
+  
+  const { data: userJams, isLoading: isJamsLoading } = useQuery({
+    queryKey: ['userJams', user?.id],
+    queryFn: async () => {
+      if (!user) return [];
+      
+      const { data, error } = await supabase
+        .from('jam_rooms')
+        .select('*, tracks(count)')
+        .eq('host_id', user.id)
+        .order('created_at', { ascending: false });
+        
+      if (error) {
+        console.error("Error fetching jam rooms:", error);
+        return [];
+      }
+      
+      return data.map(room => ({
+        id: room.id,
+        title: room.title,
+        bpm: room.bpm,
+        key: room.key,
+        isPublic: room.is_public,
+        host: room.host_name,
+        activeUsers: 1, // This would be implemented with real-time functionality later
+        trackCount: room.tracks[0].count,
+        createdAt: room.created_at
+      }));
     },
-  ];
+    enabled: !!user
+  });
+  
+  if (!user || !profile) {
+    return (
+      <MainLayout>
+        <div className="container mx-auto px-4 py-16 text-center">
+          <h1 className="text-2xl font-bold mb-4">You need to sign in to view your profile</h1>
+        </div>
+      </MainLayout>
+    );
+  }
 
   return (
     <MainLayout>
@@ -55,17 +82,12 @@ const Profile: React.FC = () => {
             <div className="bg-soundboard-darkblue rounded-lg p-6 mb-6">
               <div className="flex flex-col items-center text-center mb-6">
                 <div className="w-24 h-24 bg-soundboard-purple/20 rounded-full flex items-center justify-center mb-4">
-                  <span className="text-3xl">{user.name.charAt(0)}</span>
+                  <span className="text-3xl">{profile.username.charAt(0).toUpperCase()}</span>
                 </div>
                 
-                <h1 className="text-2xl font-bold">{user.name}</h1>
-                <p className="text-gray-400">@{user.username}</p>
-                <p className="text-sm text-gray-500 mt-1">Member since {user.joinDate}</p>
+                <h1 className="text-2xl font-bold">{profile.username}</h1>
+                <p className="text-sm text-gray-500 mt-1">Member since {new Date(profile.created_at).toLocaleDateString()}</p>
               </div>
-              
-              <p className="text-sm text-gray-300 mb-6">
-                {user.bio}
-              </p>
               
               <div className="grid grid-cols-2 gap-4">
                 <Card>
@@ -75,7 +97,7 @@ const Profile: React.FC = () => {
                   <CardContent className="p-4 pt-0">
                     <div className="flex items-center">
                       <Music className="h-5 w-5 text-soundboard-purple mr-2" />
-                      <span className="text-2xl font-bold">{user.stats.jamRoomsHosted}</span>
+                      <span className="text-2xl font-bold">{userAnalytics?.rooms_hosted || 0}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -87,7 +109,7 @@ const Profile: React.FC = () => {
                   <CardContent className="p-4 pt-0">
                     <div className="flex items-center">
                       <Mic className="h-5 w-5 text-soundboard-pink mr-2" />
-                      <span className="text-2xl font-bold">{user.stats.loopsRecorded}</span>
+                      <span className="text-2xl font-bold">{userAnalytics?.loops_recorded || 0}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -99,7 +121,7 @@ const Profile: React.FC = () => {
                   <CardContent className="p-4 pt-0">
                     <div className="flex items-center">
                       <Download className="h-5 w-5 text-soundboard-blue mr-2" />
-                      <span className="text-2xl font-bold">{user.stats.mixdownExports}</span>
+                      <span className="text-2xl font-bold">{userAnalytics?.mixdowns_exported || 0}</span>
                     </div>
                   </CardContent>
                 </Card>
@@ -111,7 +133,11 @@ const Profile: React.FC = () => {
                   <CardContent className="p-4 pt-0">
                     <div className="flex items-center">
                       <Clock className="h-5 w-5 text-green-400 mr-2" />
-                      <span className="text-2xl font-bold">{user.stats.avgLoopsPerSession}</span>
+                      <span className="text-2xl font-bold">
+                        {userAnalytics && userAnalytics.rooms_hosted > 0 
+                          ? (userAnalytics.loops_recorded / userAnalytics.rooms_hosted).toFixed(1) 
+                          : "0.0"}
+                      </span>
                     </div>
                   </CardContent>
                 </Card>
@@ -124,11 +150,19 @@ const Profile: React.FC = () => {
             <div className="bg-soundboard-darkblue rounded-lg p-6">
               <h2 className="text-xl font-bold mb-6">Your Jam Rooms</h2>
               
-              <div className="space-y-4">
-                {userJams.map((jam) => (
-                  <JamRoomCard key={jam.id} {...jam} />
-                ))}
-              </div>
+              {isJamsLoading ? (
+                <div className="text-center py-8">Loading your jam rooms...</div>
+              ) : userJams && userJams.length > 0 ? (
+                <div className="space-y-4">
+                  {userJams.map((jam) => (
+                    <JamRoomCard key={jam.id} {...jam} />
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8 text-gray-400">
+                  You haven't created any jam rooms yet.
+                </div>
+              )}
             </div>
           </div>
         </div>

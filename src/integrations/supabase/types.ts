@@ -9,7 +9,119 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      jam_rooms: {
+        Row: {
+          bpm: number
+          created_at: string
+          host_id: string
+          host_name: string
+          id: string
+          is_public: boolean
+          key: string
+          title: string
+        }
+        Insert: {
+          bpm?: number
+          created_at?: string
+          host_id: string
+          host_name: string
+          id?: string
+          is_public?: boolean
+          key?: string
+          title: string
+        }
+        Update: {
+          bpm?: number
+          created_at?: string
+          host_id?: string
+          host_name?: string
+          id?: string
+          is_public?: boolean
+          key?: string
+          title?: string
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          id: string
+          username: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          id: string
+          username: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          id?: string
+          username?: string
+        }
+        Relationships: []
+      }
+      tracks: {
+        Row: {
+          audio_url: string
+          created_at: string
+          id: string
+          jam_room_id: string
+          name: string
+          user_id: string
+          user_name: string
+        }
+        Insert: {
+          audio_url: string
+          created_at?: string
+          id?: string
+          jam_room_id: string
+          name: string
+          user_id: string
+          user_name: string
+        }
+        Update: {
+          audio_url?: string
+          created_at?: string
+          id?: string
+          jam_room_id?: string
+          name?: string
+          user_id?: string
+          user_name?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tracks_jam_room_id_fkey"
+            columns: ["jam_room_id"]
+            isOneToOne: false
+            referencedRelation: "jam_rooms"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_analytics: {
+        Row: {
+          loops_recorded: number
+          mixdowns_exported: number
+          rooms_hosted: number
+          user_id: string
+        }
+        Insert: {
+          loops_recorded?: number
+          mixdowns_exported?: number
+          rooms_hosted?: number
+          user_id: string
+        }
+        Update: {
+          loops_recorded?: number
+          mixdowns_exported?: number
+          rooms_hosted?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
