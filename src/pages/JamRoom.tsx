@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Download, Share, Settings, Users } from "lucide-react";
@@ -44,10 +43,12 @@ const JamRoom: React.FC = () => {
       };
     },
     retry: false,
-    onError: (error) => {
-      console.error('Error fetching jam room:', error);
-      toast.error('Could not find jam room');
-      navigate('/');
+    meta: {
+      onError: (error: Error) => {
+        console.error('Error fetching jam room:', error);
+        toast.error('Could not find jam room');
+        navigate('/');
+      }
     }
   });
   
